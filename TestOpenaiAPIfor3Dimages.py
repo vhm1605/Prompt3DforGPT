@@ -37,7 +37,7 @@ def image_resize_for_vlm(frame, size_frame = (256, 256), inter=cv2.INTER_AREA):
 
 
 # Create a grid of frames
-def create_frame_grid(video_matrix, start_indice, grid_size=5, render_pos='topright'):
+def create_frame_grid(video_matrix, start_indice, actual_total_frame, grid_size=5, render_pos='topright'):
     spacer = 0
     num_frames = grid_size**2
     half_num_frames = num_frames // 2
@@ -83,8 +83,9 @@ def create_frame_grid(video_matrix, start_indice, grid_size=5, render_pos='topri
             else:
                 text_x = frame.shape[1] - text_size[0] // 2 - max_dim // 2
                 text_y = text_size[1] // 2 + max_dim // 2
-            cv2.putText(frame, str(index + start_indice+1), (text_x-25, text_y),
-                        cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), 5)
+            if index + start_indice+1 <= actual_total_frame:
+                cv2.putText(frame, str(index + start_indice+1), (text_x-25, text_y),
+                            cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), 5)
             y1 = i * (frame_height + spacer)
             y2 = y1 + frame_height
             x1 = j * (frame_width + spacer)
@@ -155,11 +156,15 @@ def prompt_3D_image(video_path, grid_size = 5, new_depth = 200,  size_frame = (2
   prompt_message = (
       f"Detailed image description of the following 3D medical image. I have split the 3D image into 2D images, each image has a number representing the order of that 2D image in the 3D image."
   )
-  img_3D_array = np.load(video_path)
-
-  video_matrix = img_3D_array.reshape(1, *img_3D_array.shape, 1)
-  video_matrix = reshape_depth_3D(video_matrix, new_depth = new_depth)
-  video_matrix = video_matrix.squeeze()
+  video_matrix = np.load(video_path)
+  actual_total_frame, height, width = video_matrix.shape
+  if actual_total_frame % (grid_size**2) != 0:
+     num_white_layers = (((actual_total_frame // (grid_size**2)) + 1) * grid_size**2) - actual_total_frame
+     white_layers = np.full((num_white_layers, height, width), 255, dtype=np.uint8)
+     video_matrix = np.concatenate((video_matrix, white_layers), axis=0)
+#   video_matrix = img_3D_array.reshape(1, *img_3D_array.shape, 1)
+#   video_matrix = reshape_depth_3D(video_matrix, new_depth = new_depth)
+#   video_matrix = video_matrix.squeeze()
  # print(video_matrix.shape)
   if len(video_matrix.shape)==3:
     video_matrix = np.stack([video_matrix] * 3, axis=-1)
@@ -170,17 +175,17 @@ def prompt_3D_image(video_path, grid_size = 5, new_depth = 200,  size_frame = (2
   
   for i in range(num_grid):
     start_indice = i * num_slice
-    image, used_frame_indices = create_frame_grid(video_matrix, start_indice, grid_size=grid_size)
+    image, used_frame_indices = create_frame_grid(video_matrix, start_indice, actual_total_frame=actual_total_frame, grid_size=grid_size)
     stack_img.append(image)
     cv2.imwrite(
                 os.path.join(
-                    '.\Test',
+                    'Test',
                     f"grid_image_sample{i}.png"),
                 image)
   description = stack_img_understanding(stack_img, prompt_message, size_frame = size_frame)
   print(description)
 
-prompt_3D_image('.\ct.npy')
+prompt_3D_image('ct.npy')
 
 
 
