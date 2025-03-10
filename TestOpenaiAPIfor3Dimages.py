@@ -9,14 +9,17 @@ import time
 import argparse
 import openai
 import torch
-
+from dotenv import load_dotenv
 from groq import Groq
 
 import os
 
+load_dotenv(dotenv_path= "../.env")
+
+API_KEY = os.getenv("OPEN_API_KEY")
 # Thay 'your_groq_api_key_here' bằng API key thực tế của bạn
-os.environ['GROQ_API_KEY'] = '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'
-#os.environ['OPENAI_API_KEY'] = ''
+#os.environ['GROQ_API_KEY'] = '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'
+os.environ['OPENAI_API_KEY'] = API_KEY
 
 
 def reshape_depth_3D(video, new_depth=200):
@@ -37,18 +40,17 @@ def image_resize_for_vlm(frame, size_frame = (256, 256), inter=cv2.INTER_AREA):
 
 
 # Create a grid of frames
+import numpy as np
+import cv2
+
 def create_frame_grid(video_matrix, start_indice, grid_size=5, render_pos='topright'):
     spacer = 0
-    num_frames = grid_size**2
-    half_num_frames = num_frames // 2
-    frames = []
-    actual_indices = []
+    num_frames = grid_size ** 2
 
+    frames = video_matrix[start_indice:start_indice + num_frames]
+    actual_indices = list(range(start_indice, start_indice + num_frames))
 
-    frames = video_matrix[start_indice:start_indice+grid_size**2]
-    actual_indices = list(range(start_indice, start_indice+grid_size**2))
-
-    if len(frames) < grid_size**2:
+    if len(frames) < num_frames:
         raise ValueError("Not enough frames to create the grid.")
 
     frame_height, frame_width = frames[0].shape[:2]
@@ -61,37 +63,41 @@ def create_frame_grid(video_matrix, start_indice, grid_size=5, render_pos='topri
     for i in range(grid_size):
         for j in range(grid_size):
             index = i * grid_size + j
-            frame = frames[index]
+            frame = frames[index].copy()
             cX, cY = frame.shape[1] // 2, frame.shape[0] // 2
             max_dim = int(min(frame.shape[:2]) * 0.3)
             overlay = frame.copy()
+
             if render_pos == 'center':
                 circle_center = (cX, cY)
             else:
                 circle_center = (frame.shape[1] - max_dim // 2, max_dim // 2)
-            cv2.circle(overlay, circle_center,
-                       max_dim // 2, (255, 255, 255), -1)
+
+            # Vẽ hình tròn với độ trong suốt
+            cv2.circle(overlay, circle_center, max_dim // 2, (255, 255, 255), -1)
             alpha = 0.3
             frame = cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0)
             cv2.circle(frame, circle_center, max_dim // 2, (255, 255, 255), 2)
+
+            # Tính toán vị trí văn bản để nằm chính giữa hình tròn
             font_scale = max_dim / 70
-            text_size = cv2.getTextSize(
-                str(index + 1), cv2.FONT_HERSHEY_SIMPLEX, font_scale, 2)[0]
-            if render_pos == 'center':
-                text_x = cX - text_size[0] // 2
-                text_y = cY + text_size[1] // 2
-            else:
-                text_x = frame.shape[1] - text_size[0] // 2 - max_dim // 2
-                text_y = text_size[1] // 2 + max_dim // 2
-            cv2.putText(frame, str(index + start_indice+1), (text_x-25, text_y),
-                        cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), 5)
+            text = str(index + start_indice + 1)
+            text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, 2)[0]
+            
+            text_x = circle_center[0] - text_size[0] // 2
+            text_y = circle_center[1] + text_size[1] // 2
+
+            # Vẽ số lên hình ảnh
+            cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), 5)
+
+            # Gán vào ảnh lưới
             y1 = i * (frame_height + spacer)
             y2 = y1 + frame_height
             x1 = j * (frame_width + spacer)
             x2 = x1 + frame_width
             grid_img[y1:y2, x1:x2] = frame
-    return grid_img, actual_indices
 
+    return grid_img, actual_indices
 
 
 
@@ -121,42 +127,51 @@ def stack_img_understanding(stack_img, prompt_message,  size_frame = (256, 256))
         },
     }
     PROMPT_MESSAGES[0]['content'].append(my_dict)
-    break
-  client = Groq(
-        api_key=os.environ.get("GROQ_API_KEY"),
-    )
-  completion = client.chat.completions.create(
-      model="llama-3.2-11b-vision-preview",
-      messages=PROMPT_MESSAGES,
-      temperature=1,
-      max_completion_tokens=1024,
-      top_p=1,
-      stream=False,
-      stop=None,
-  )
+  #   break
+  # client = Groq(
+  #       api_key=os.environ.get("GROQ_API_KEY"),
+  #   )
+  # completion = client.chat.completions.create(
+  #     model="llama-3.2-11b-vision-preview",
+  #     messages=PROMPT_MESSAGES,
+  #     temperature=1,
+  #     max_completion_tokens=1024,
+  #     top_p=1,
+  #     stream=False,
+  #     stop=None,
+  # )
   
 
 
 
-#   client = OpenAI(api_key=os.environ.get("GROQ_API_KEY"),)
-#   completion = client.chat.completions.create(
-#   model="gpt-4o-mini",
-#   messages=PROMPT_MESSAGES,
-#   max_tokens=300,
-# )
+  client = OpenAI(api_key=os.environ.get("GROQ_API_KEY"),)
+  completion = client.chat.completions.create(
+  model="gpt-4o",
+  messages=PROMPT_MESSAGES,
+  max_tokens=300,
+  temperature=0.2,
+)
 
-  return completion.choices[0].message
-
-
-
+  return completion.choices[0].message.content
 
 
-def prompt_3D_image(video_path, grid_size = 5, new_depth = 200,  size_frame = (256, 256)):
+
+
+
+def prompt_3D_image(video_path, grid_size = 5, new_depth = 200,  size_frame = (512, 512)):
   prompt_message = (
-      f"Detailed image description of the following 3D medical image. I have split the 3D image into 2D images, each image has a number representing the order of that 2D image in the 3D image."
+      f"Hãy giả sử bạn là một mô hình AI được huấn luyện để viết phân tích về ảnh 3D về y tế (Ảnh 3D tôi cung cấp thuộc 1 trong 4 bộ phận: bụng xương chậu, ngực, đầu cổ hoặc toàn thân) và bạn đang được cung cấp ảnh 3D đầu vào (dưới định dạng được chia thành nhiều ảnh 2D, mỗi ảnh 2D có 1 số thể hiện thứ tự của ảnh 2D đó trong ảnh 3D). Hãy chẩn đoán y khoa ảnh tôi gửi theo format sau:\n Đây là ảnh của vùng....\n ---\n*Báo cáo Chẩn đoán Y khoa:*\n...--- "
   )
   img_3D_array = np.load(video_path)
-
+  X_min = img_3D_array.min()
+  X_max = img_3D_array.max()
+ # print(X_min, X_max)
+  img_3D_scaled = (img_3D_array - X_min) / (X_max - X_min) * 255
+  img_3D_scaled = img_3D_scaled.astype(np.uint8)
+  img_3D_array = img_3D_scaled
+  X_min = img_3D_array.min()
+  X_max = img_3D_array.max()
+ # print(X_min, X_max)
   video_matrix = img_3D_array.reshape(1, *img_3D_array.shape, 1)
   video_matrix = reshape_depth_3D(video_matrix, new_depth = new_depth)
   video_matrix = video_matrix.squeeze()
@@ -180,7 +195,7 @@ def prompt_3D_image(video_path, grid_size = 5, new_depth = 200,  size_frame = (2
   description = stack_img_understanding(stack_img, prompt_message, size_frame = size_frame)
   print(description)
 
-prompt_3D_image('.\ct.npy')
+prompt_3D_image('chest_day_3_patient_64.npy')
 
 
 
