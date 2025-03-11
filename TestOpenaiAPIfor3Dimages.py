@@ -103,6 +103,10 @@ def create_frame_grid(video_matrix, start_indice, grid_size=5, render_pos='topri
 
 def stack_img_understanding(stack_img, prompt_message,  size_frame = (256, 256)):
   PROMPT_MESSAGES = [
+     {
+            "role": "system",
+            "content": "You are an AI medical assistant specialized in analyzing medical images and providing diagnostic insights."
+        },
       {
           "role": "user",
           "content": [
@@ -126,7 +130,7 @@ def stack_img_understanding(stack_img, prompt_message,  size_frame = (256, 256))
             "detail": "high"
         },
     }
-    PROMPT_MESSAGES[0]['content'].append(my_dict)
+    PROMPT_MESSAGES[1]['content'].append(my_dict)
   #   break
   # client = Groq(
   #       api_key=os.environ.get("GROQ_API_KEY"),
@@ -144,11 +148,11 @@ def stack_img_understanding(stack_img, prompt_message,  size_frame = (256, 256))
 
 
 
-  client = OpenAI(api_key=os.environ.get("GROQ_API_KEY"),)
+  client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"),)
   completion = client.chat.completions.create(
   model="gpt-4o",
   messages=PROMPT_MESSAGES,
-  max_tokens=300,
+  max_tokens=500,
   temperature=0.2,
 )
 
@@ -160,7 +164,8 @@ def stack_img_understanding(stack_img, prompt_message,  size_frame = (256, 256))
 
 def prompt_3D_image(video_path, grid_size = 5, new_depth = 200,  size_frame = (512, 512)):
   prompt_message = (
-      f"Hãy giả sử bạn là một mô hình AI được huấn luyện để viết phân tích về ảnh 3D về y tế (Ảnh 3D tôi cung cấp thuộc 1 trong 4 bộ phận: bụng xương chậu, ngực, đầu cổ hoặc toàn thân) và bạn đang được cung cấp ảnh 3D đầu vào (dưới định dạng được chia thành nhiều ảnh 2D, mỗi ảnh 2D có 1 số thể hiện thứ tự của ảnh 2D đó trong ảnh 3D). Hãy chẩn đoán y khoa ảnh tôi gửi theo format sau:\n Đây là ảnh của vùng....\n ---\n*Báo cáo Chẩn đoán Y khoa:*\n...--- "
+      f"bạn được cung cấp ảnh 3D đầu vào (ảnh chụp 1 trong 3 bộ phận: đầu cổ, bụng xương chậu, ngực hoặc nó chụp toàn thân)(dưới định dạng được chia thành nhiều ảnh 2D, mỗi ảnh 2D có 1 số thể hiện thứ tự của ảnh 2D đó trong ảnh 3D). Hãy chẩn đoán, phân tích y khoa các bộ phận trong ảnh tôi gửi và các điểm bất thường trong ảnh theo format sau:\n Đây là ảnh của vùng....\n ---\n*Báo cáo Chẩn đoán Y khoa:*\n...--- "
+      
   )
   img_3D_array = np.load(video_path)
   X_min = img_3D_array.min()
@@ -195,7 +200,18 @@ def prompt_3D_image(video_path, grid_size = 5, new_depth = 200,  size_frame = (5
   description = stack_img_understanding(stack_img, prompt_message, size_frame = size_frame)
   print(description)
 
-prompt_3D_image('chest_day_3_patient_64.npy')
+
+folder_path = '.\Test'
+
+# Lấy danh sách các tệp trong thư mục
+files = os.listdir(folder_path)
+
+# Duyệt qua từng tệp và xóa
+for file in files:
+    file_path = os.path.join(folder_path, file)
+    if os.path.isfile(file_path):
+        os.remove(file_path)
+prompt_3D_image('_abdomen_pelvis_day_3_patient_64.npy')
 
 
 
