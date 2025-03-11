@@ -105,7 +105,7 @@ def stack_img_understanding(stack_img, prompt_message,  size_frame = (256, 256))
   PROMPT_MESSAGES = [
      {
             "role": "system",
-            "content": "You are an AI medical assistant specialized in analyzing medical images and providing diagnostic insights."
+            "content": "Hãy giả sử bạn là một mô hình AI được huấn luyện để viết phân tích về ảnh 3D y tế. Đây là format câu trả lời mà tôi cần:\nĐây là ảnh của vùng....\n ---\n*Báo cáo Chẩn đoán Y khoa:....\n ---\n*Lời khuyên:....*\n...\n---"
         },
       {
           "role": "user",
@@ -164,7 +164,9 @@ def stack_img_understanding(stack_img, prompt_message,  size_frame = (256, 256))
 
 def prompt_3D_image(video_path, grid_size = 5, new_depth = 200,  size_frame = (512, 512)):
   prompt_message = (
-      f"bạn được cung cấp ảnh 3D đầu vào (ảnh chụp 1 trong 3 bộ phận: đầu cổ, bụng xương chậu, ngực hoặc nó chụp toàn thân)(dưới định dạng được chia thành nhiều ảnh 2D, mỗi ảnh 2D có 1 số thể hiện thứ tự của ảnh 2D đó trong ảnh 3D). Hãy chẩn đoán, phân tích y khoa các bộ phận trong ảnh tôi gửi và các điểm bất thường trong ảnh theo format sau:\n Đây là ảnh của vùng....\n ---\n*Báo cáo Chẩn đoán Y khoa:*\n...--- "
+     f"bạn đang được cung cấp ảnh 3D đầu vào (dưới định dạng được chia thành nhiều ảnh 2D, mỗi ảnh 2D có 1 số thể hiện thứ tự của ảnh 2D đó trong ảnh 3D)."
+     f"Ảnh 3D tôi cung cấp thuộc 1 trong 4 bộ phận: bụng xương chậu, ngực, đầu cổ hoặc toàn thân"
+      f"Chẩn đoán y khoa ảnh 3D này."
       
   )
   img_3D_array = np.load(video_path)
@@ -199,6 +201,7 @@ def prompt_3D_image(video_path, grid_size = 5, new_depth = 200,  size_frame = (5
                 image)
   description = stack_img_understanding(stack_img, prompt_message, size_frame = size_frame)
   print(description)
+  return description
 
 
 folder_path = '.\Test'
@@ -211,7 +214,16 @@ for file in files:
     file_path = os.path.join(folder_path, file)
     if os.path.isfile(file_path):
         os.remove(file_path)
-prompt_3D_image('_abdomen_pelvis_day_3_patient_64.npy')
+
+out = prompt_3D_image("dataset/_abdomen_pelvis_day_3_patient_64.npy")
+
+
+# data_path = '.\dataset'
+# datasets = os.listdir(data_path)
+# for image in datasets:
+#    image_path = os.path.join(data_path, image)
+#    out = prompt_3D_image(image_path)
+#    print(image, "\n\n", out, end = "\n\n\n\n")
 
 
 
